@@ -13,6 +13,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton
 )
+from datetime import date
 from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
@@ -261,11 +262,20 @@ async def start_cmd(message: Message):
         ref_id
     )
 
-    await message.answer(
-        "⚽ Andijon FC Fan Challenge\n\n"
-        "Ball yig'ing va sovg'alarni qo'lga kiriting!",
-        reply_markup=user_menu
-    )
+    if message.from_user.id in ADMIN_IDS:
+    
+        await message.answer(
+            "⚽ Admin panel",
+            reply_markup=admin_menu
+        )
+    
+    else:
+    
+        await message.answer(
+            "⚽ Andijon FC Fan Challenge\n\n"
+            "Ball yig'ing va sovg'alarni qo'lga kiriting!",
+            reply_markup=user_menu
+        )
 
 
 
@@ -416,7 +426,17 @@ async def daily_bonus(message: Message):
             "🏅 +5 ball"
         )
 
-
+        today = date.today()
+        
+        if user.last_bonus == today:
+        
+            await message.answer(
+                "⏳ Bugungi bonusni olib bo'lgansiz"
+            )
+            return
+        
+        user.balls += 5
+        user.last_bonus = today
 
 #sovrinlar tugmmasi va oshani menyusi
 
@@ -483,10 +503,12 @@ async def prediction_menu(message: Message):
 
 @dp.message()
 async def prediction_input(message: Message):
-    
-    if message.from_user.id in result_admins:
+
+    if message.from_user.id not in prediction_users:
         return
 
+    if message.from_user.id in result_admins:
+        return
     text = message.text.strip()
 
     if ":" not in text:
@@ -633,21 +655,6 @@ async def result_input(message: Message):
         f"🎯 To'g'ri hisob: {exact}\n"
         f"⚽ G'olibni topgan: {winners}"
     )
-
-@dp.message(F.text == "⚽ Match Yaratish")
-async def create_match(message: Message):
-
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    CURRENT_MATCH["active"] = True
-    CURRENT_MATCH["home"] = "Andijon"
-    CURRENT_MATCH["away"] = "Nasaf"
-
-    await message.answer(
-        "✅ Andijon vs Nasaf prognozi ochildi"
-    )
-
 
 
 async def main():
