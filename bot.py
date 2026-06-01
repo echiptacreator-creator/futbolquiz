@@ -258,19 +258,28 @@ async def profile_handler(message: Message):
             message.from_user.id
         )
 
-    if not user:
-
-        await message.answer(
-            "Avval /start bosing"
+        result = await session.execute(
+            select(User)
+            .order_by(User.balls.desc())
         )
 
-        return
+        users = result.scalars().all()
+
+        place = 0
+
+        for i, u in enumerate(users, start=1):
+
+            if u.tg_id == user.tg_id:
+
+                place = i
+                break
 
     await message.answer(
         f"👤 Profil\n\n"
         f"🏅 Ball: {user.balls}\n"
-        f"🔗 Referral: {user.referrals}\n"
-        f"🆔 ID: {user.tg_id}"
+        f"👥 Referral: {user.referrals}\n"
+        f"🏆 O‘rin: #{place}\n\n"
+        f"🎁 TOP 3 sovrin oladi"
     )
     
 
