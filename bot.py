@@ -484,8 +484,10 @@ async def prediction_menu(message: Message):
 
 #HISOBNI QABUL QILISH
 
-
-@dp.message()
+@dp.message(
+    lambda message:
+    message.from_user.id in prediction_users
+)
 async def prediction_input(message: Message):
 
     if message.from_user.id not in prediction_users:
@@ -551,6 +553,9 @@ async def prediction_input(message: Message):
 @dp.message(F.text == "⚽ Match Yaratish")
 async def create_match(message: Message):
 
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    
     print("MATCH BUTTON BOSILDI")
 
     CURRENT_MATCH["active"] = True
@@ -593,8 +598,10 @@ def winner(score):
     return "draw"
 
 
-
-@dp.message()
+@dp.message(
+    lambda message:
+    message.from_user.id in result_admins
+)
 async def result_input(message: Message):
 
     if message.from_user.id not in result_admins:
