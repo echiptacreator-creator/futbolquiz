@@ -551,6 +551,8 @@ async def prediction_input(message: Message):
 @dp.message(F.text == "⚽ Match Yaratish")
 async def create_match(message: Message):
 
+    print("MATCH BUTTON BOSILDI")
+
     CURRENT_MATCH["active"] = True
     CURRENT_MATCH["home"] = "Andijon"
     CURRENT_MATCH["away"] = "Nasaf"
