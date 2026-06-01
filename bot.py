@@ -181,15 +181,6 @@ class User(Base):
 
 
 
-
-CURRENT_MATCH = {
-    "active": False,
-    "home": "",
-    "away": ""
-}
-
-
-
 async def get_or_create_user(
     message: Message,
     ref_id=None
@@ -524,27 +515,6 @@ async def tasks_handler(message: Message):
 
 
 
-@dp.message(F.text == "⚽ Match Prognoz")
-async def prediction_menu(message: Message):
-
-    if not CURRENT_MATCH["active"]:
-
-        await message.answer(
-            "⚽ Hozir aktiv prognoz yo'q"
-        )
-
-        return
-
-    prediction_users.add(
-        message.from_user.id
-    )
-
-    await message.answer(
-        f"⚽ {CURRENT_MATCH['home']} vs {CURRENT_MATCH['away']}\n\n"
-        "Hisobni kiriting.\n\n"
-        "Misol:\n"
-        "2:1"
-    )
 
 #HISOBNI QABUL QILISH
 
@@ -602,61 +572,72 @@ async def prediction_input(message: Message):
 
 
 @dp.message()
-async def result_input(message: Message):
+async def create_match_steps(message: Message):
 
-    if message.from_user.id not in result_admins:
+    if message.from_user.id not in match_create_admins:
         return
 
-    result_score = message.text.strip()
+    state = match_create_admins[message.from_user.id]
 
-    if ":" not in result_score:
+    if state["step"] == 1:
+
+        if "-" not in message.text:
+
+            await message.answer(
+                "Misol:\nAndijon-Nasaf"
+            )
+            return
+
+        home, away = message.text.split("-", 1)
+
+        state["home"] = home.strip()
+        state["away"] = away.strip()
+        state["step"] = 2
 
         await message.answer(
-            "❌ Misol: 2:1"
+            "Sana kiriting:\n\n"
+            "2025-08-20 20:00"
         )
         return
 
-    async with SessionLocal() as session:
+    elif state["step"] == 2:
 
-        result = await session.execute(
-            select(User)
+        try:
+
+            match_date = datetime.strptime(
+                message.text.strip(),
+                "%Y-%m-%d %H:%M"
+            )
+
+        except ValueError:
+
+            await message.answer(
+                "Format:\n2025-08-20 20:00"
+            )
+            return
+
+        async with SessionLocal() as session:
+
+            new_match = Match(
+                home_team=state["home"],
+                away_team=state["away"],
+                match_date=match_date,
+                active=True
+            )
+
+            session.add(new_match)
+
+            await session.commit()
+
+        del match_create_admins[
+            message.from_user.id
+        ]
+
+        await message.answer(
+            f"✅ Match yaratildi\n\n"
+            f"⚽ {state['home']} vs {state['away']}\n"
+            f"📅 {match_date.strftime('%d.%m.%Y %H:%M')}"
         )
-
-        users = result.scalars().all()
-
-        exact = 0
-        winners = 0
-
-        for user in users:
-
-            if not user.prediction:
-                continue
-
-            if user.prediction == result_score:
-
-                user.balls += 100
-                exact += 1
-
-            elif winner(user.prediction) == winner(result_score):
-
-                user.balls += 40
-                winners += 1
-
-            user.prediction = None
-
-        await session.commit()
-
-    result_admins.discard(
-        message.from_user.id
-    )
-
-    CURRENT_MATCH["active"] = False
-
-    await message.answer(
-        f"🏆 Natija hisoblandi\n\n"
-        f"🎯 To'g'ri hisob: {exact}\n"
-        f"⚽ G'olibni topgan: {winners}"
-    )
     
 #################################################
 #            ADMIN BOLIMI
