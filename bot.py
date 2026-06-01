@@ -640,6 +640,20 @@ async def result_menu(message: Message):
     lambda m:
     m.from_user.id in result_states
 )
+
+def get_winner(score):
+
+    home, away = map(int, score.split(":"))
+
+    if home > away:
+        return "home"
+
+    if home < away:
+        return "away"
+
+    return "draw"
+
+
 async def result_steps(message: Message):
 
     state = result_states[
@@ -699,7 +713,64 @@ async def result_steps(message: Message):
 
             match.result = score
             match.active = False
-
+            
+            result = await session.execute(
+                select(Prediction)
+                .where(
+                    Prediction.match_id == match.id
+                )
+            )
+            
+            predictions = result.scalars().all()
+            
+            for prediction in predictions:
+            
+                user = await session.get(
+                    User,
+                    prediction.user_id
+                )
+            
+                reward = 0
+            
+                if prediction.score == score:
+            
+                    reward = 100
+            
+                elif (
+                    get_winner(prediction.score)
+                    ==
+                    get_winner(score)
+                ):
+            
+                    reward = 40
+            
+                user.balls += reward
+            
+                try:
+            
+                    if reward > 0:
+            
+                        await bot.send_message(
+                            prediction.user_id,
+                            f"🎉 Prognoz natijasi!\n\n"
+                            f"⚽ {match.home_team} vs {match.away_team}\n"
+                            f"🏁 Natija: {score}\n\n"
+                            f"🏅 Siz +{reward} ball oldingiz!"
+                        )
+            
+                    else:
+            
+                        await bot.send_message(
+                            prediction.user_id,
+                            f"😔 Prognoz natijasi\n\n"
+                            f"⚽ {match.home_team} vs {match.away_team}\n"
+                            f"🏁 Natija: {score}\n\n"
+                            f"Bu safar ball olmadingiz."
+                        )
+            
+                except:
+                    pass
+            
             await session.commit()
 
             del result_states[
