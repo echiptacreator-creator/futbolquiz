@@ -112,6 +112,21 @@ class User(Base):
     String(20),
     nullable=True
     )
+
+
+
+
+
+CURRENT_MATCH = {
+    "active": False,
+    "home": "",
+    "away": ""
+}
+
+
+
+
+
 async def get_or_create_user(
     message: Message,
     ref_id=None
@@ -465,10 +480,9 @@ async def prediction_menu(message: Message):
 
 #HISOBNI QABUL QILISH
 
-@dp.message(
-    F.text.regexp(r"^\d+:\d+$")
-)
-async def prediction_input(...)
+
+@dp.message()
+async def prediction_input(message: Message):
 
     if message.from_user.id not in prediction_users:
         return
@@ -568,10 +582,10 @@ def winner(score):
 
     return "draw"
 
-@dp.message(
-    F.text.regexp(r"^\d+:\d+$")
-)
-async def result_input(...)
+
+
+@dp.message()
+async def result_input(message: Message):
 
     if message.from_user.id not in result_admins:
         return
