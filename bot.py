@@ -103,6 +103,13 @@ class User(Base):
     last_bonus: Mapped[datetime | None] = mapped_column(
     DateTime,
     nullable=True
+        
+    )
+    
+    prediction: Mapped[str | None] = mapped_column(
+    String(50),
+    nullable=True
+        
     )
 
 async def get_or_create_user(
@@ -391,6 +398,40 @@ async def daily_bonus(message: Message):
             "🏅 +5 ball"
         )
 
+
+
+#sovrinlar tugmmasi va oshani menyusi
+
+
+@dp.message(F.text == "🎁 Sovrinlar")
+async def prizes_handler(message: Message):
+
+    await message.answer(
+        "🎁 Sovrinlar\n\n"
+        "🥇 1-o‘rin\n"
+        "👕 Futbolchi imzoli futbolka\n\n"
+        "🥈 2-o‘rin\n"
+        "🧣 Klub sharfi\n\n"
+        "🥉 3-o‘rin\n"
+        "🎫 Stadion chiptasi\n\n"
+        "🏆 Ball yig‘ing va TOP 3 ga kiring!"
+    )
+
+
+#vazifalarim tugmasi va menyusi
+
+
+
+@dp.message(F.text == "📋 Vazifalar")
+async def tasks_handler(message: Message):
+
+    await message.answer(
+        "📋 Bugungi vazifalar\n\n"
+        "🔥 Kunlik bonus oling (+5)\n"
+        "👥 Do‘st taklif qiling (+30)\n"
+        "⚽ Match prognoz qiling (+50)\n\n"
+        "Ko‘proq ball = sovringa yaqinroq"
+    )
 
 
 
