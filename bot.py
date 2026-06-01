@@ -70,6 +70,8 @@ prediction_users = set()
 result_admins = set()
 
 
+
+
 class User(Base):
 
     __tablename__ = "users"
@@ -122,8 +124,6 @@ CURRENT_MATCH = {
     "home": "",
     "away": ""
 }
-
-
 
 
 
@@ -557,6 +557,8 @@ async def create_match(message: Message):
         return
     
     print("MATCH BUTTON BOSILDI")
+    print("prediction_users =", prediction_users)
+    print("result_admins =", result_admins)
 
     CURRENT_MATCH["active"] = True
     CURRENT_MATCH["home"] = "Andijon"
