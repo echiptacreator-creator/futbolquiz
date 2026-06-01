@@ -396,35 +396,26 @@ async def daily_bonus(message: Message):
             message.from_user.id
         )
 
-        now = datetime.utcnow()
-
-        if user.last_bonus:
-
-            diff = now - user.last_bonus
-
-            if diff.total_seconds() < 86400:
-
-                remain = int(
-                    (86400 - diff.total_seconds()) / 3600
-                )
-
-                await message.answer(
-                    f"⏳ Bonus olingan.\n\n"
-                    f"Yana {remain} soatdan keyin qayting."
-                )
-
-                return
-
+        today = date.today()
+        
+        if user.last_bonus == today:
+        
+            await message.answer(
+                "⏳ Siz bugungi bonusni olib bo'lgansiz.\n\n"
+                "Ertaga qayting."
+            )
+            return
+        
         user.balls += 5
-
-        user.last_bonus = now
-
+        user.last_bonus = today
+        
         await session.commit()
-
+        
         await message.answer(
             "🔥 Bonus olindi!\n\n"
             "🏅 +5 ball"
         )
+
 
         today = date.today()
         
