@@ -5,7 +5,8 @@ from sqlalchemy import select
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-
+from sqlalchemy import DateTime
+from datetime import datetime
 from aiogram.filters import CommandStart
 from aiogram.types import (
     Message,
@@ -62,6 +63,10 @@ SessionLocal = async_sessionmaker(
 class Base(DeclarativeBase):
     pass
 
+#user bo`limi manashuyerdaaa
+
+
+
 class User(Base):
 
     __tablename__ = "users"
@@ -93,6 +98,11 @@ class User(Base):
     ref_by: Mapped[int | None] = mapped_column(
         BigInteger,
         nullable=True
+    )
+    
+    last_bonus: Mapped[datetime | None] = mapped_column(
+    DateTime,
+    nullable=True
     )
 
 async def get_or_create_user(
@@ -207,6 +217,8 @@ dp = Dispatcher()
 @dp.message(CommandStart())
 async def start_cmd(message: Message):
 
+    print("START TEXT =", message.text)
+    
     ref_id = None
 
     args = message.text.split()
@@ -321,7 +333,52 @@ async def referral_handler(message: Message):
         f"{user.referrals}\n\n"
         f"🏅 Har do'st uchun +30 ball"
     )
-    
+
+
+# KUNLIK BONUSLAR BOLIMI VA FUNKTSIYASI
+
+
+
+
+@dp.message(F.text == "🔥 Kunlik Bonus")
+async def daily_bonus(message: Message):
+
+    async with SessionLocal() as session:
+
+        user = await session.get(
+            User,
+            message.from_user.id
+        )
+
+        now = datetime.utcnow()
+
+        if user.last_bonus:
+
+            diff = now - user.last_bonus
+
+            if diff.total_seconds() < 86400:
+
+                remain = int(
+                    (86400 - diff.total_seconds()) / 3600
+                )
+
+                await message.answer(
+                    f"⏳ Bonus olingan.\n\n"
+                    f"Yana {remain} soatdan keyin qayting."
+                )
+
+                return
+
+        user.balls += 5
+
+        user.last_bonus = now
+
+        await session.commit()
+
+        await message.answer(
+            "🔥 Bonus olindi!\n\n"
+            "🏅 +5 ball"
+        )
 
 
 
