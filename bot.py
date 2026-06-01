@@ -13,7 +13,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton
 )
-
+from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker
@@ -189,7 +189,10 @@ admin_menu = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(text="➕ Savol qo'shish"),
-            KeyboardButton(text="📊 Statistika")
+            KeyboardButton(text="📊 Statistika"),
+        ],
+        [
+            KeyboardButton(text="🏁 Natija Kiritish")
         ],
         [
             KeyboardButton(text="📢 Xabar yuborish"),
@@ -462,8 +465,10 @@ async def prediction_menu(message: Message):
 
 #HISOBNI QABUL QILISH
 
-@dp.message()
-async def prediction_input(message: Message):
+@dp.message(
+    F.text.regexp(r"^\d+:\d+$")
+)
+async def prediction_input(...)
 
     if message.from_user.id not in prediction_users:
         return
@@ -563,8 +568,10 @@ def winner(score):
 
     return "draw"
 
-@dp.message()
-async def result_input(message: Message):
+@dp.message(
+    F.text.regexp(r"^\d+:\d+$")
+)
+async def result_input(...)
 
     if message.from_user.id not in result_admins:
         return
