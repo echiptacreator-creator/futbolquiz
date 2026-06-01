@@ -67,8 +67,6 @@ class Base(DeclarativeBase):
 #user bo`limi manashuyerdaaa
 
 
-prediction_users = set()
-result_admins = set()
 match_create_admins = {}
 
 
@@ -471,12 +469,7 @@ async def daily_bonus(message: Message):
         )
 
 
-
-
 #sovrinlar tugmmasi va oshani menyusi
-
-
-
 
 
 
@@ -511,63 +504,21 @@ async def tasks_handler(message: Message):
     )
 
 
-#MATCH PROGNOZ MENYUSI TUGMASI FUNKTSIYASI
 
+@dp.message(F.text == "⚽ Match Yaratish")
+async def create_match(message: Message):
 
-
-
-#HISOBNI QABUL QILISH
-
-@dp.message()
-async def prediction_input(message: Message):
-
-    if message.from_user.id not in prediction_users:
+    if message.from_user.id not in ADMIN_IDS:
         return
 
-    text = message.text.strip()
-
-    if ":" not in text:
-
-        await message.answer(
-            "❌ Misol: 2:1"
-        )
-        return
-
-    try:
-
-        home, away = text.split(":")
-
-        int(home)
-        int(away)
-
-    except:
-
-        await message.answer(
-            "❌ Misol: 2:1"
-        )
-        return
-
-    async with SessionLocal() as session:
-
-        user = await session.get(
-            User,
-            message.from_user.id
-        )
-
-        user.prediction = text
-        user.balls += 2
-
-        await session.commit()
-
-    prediction_users.discard(
-        message.from_user.id
-    )
+    match_create_admins[message.from_user.id] = {
+        "step": 1
+    }
 
     await message.answer(
-        f"✅ Prognoz saqlandi\n\n"
-        f"Sizning prognozingiz: {text}\n\n"
-        f"🏅 +2 ball",
-        reply_markup=user_menu
+        "Jamoalarni kiriting\n\n"
+        "Misol:\n"
+        "Andijon-Nasaf"
     )
 
 
@@ -577,7 +528,9 @@ async def create_match_steps(message: Message):
     if message.from_user.id not in match_create_admins:
         return
 
-    state = match_create_admins[message.from_user.id]
+    state = match_create_admins[
+        message.from_user.id
+    ]
 
     if state["step"] == 1:
 
@@ -595,100 +548,7 @@ async def create_match_steps(message: Message):
         state["step"] = 2
 
         await message.answer(
-            "Sana kiriting:\n\n"
-            "2025-08-20 20:00"
-        )
-        return
-
-    elif state["step"] == 2:
-
-        try:
-
-            match_date = datetime.strptime(
-                message.text.strip(),
-                "%Y-%m-%d %H:%M"
-            )
-
-        except ValueError:
-
-            await message.answer(
-                "Format:\n2025-08-20 20:00"
-            )
-            return
-
-        async with SessionLocal() as session:
-
-            new_match = Match(
-                home_team=state["home"],
-                away_team=state["away"],
-                match_date=match_date,
-                active=True
-            )
-
-            session.add(new_match)
-
-            await session.commit()
-
-        del match_create_admins[
-            message.from_user.id
-        ]
-
-        await message.answer(
-            f"✅ Match yaratildi\n\n"
-            f"⚽ {state['home']} vs {state['away']}\n"
-            f"📅 {match_date.strftime('%d.%m.%Y %H:%M')}"
-        )
-    
-#################################################
-#            ADMIN BOLIMI
-#################################################
-
-@dp.message(F.text == "⚽ Match Yaratish")
-async def create_match(message: Message):
-
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    match_create_admins[message.from_user.id] = {
-        "step": 1
-    }
-
-    await message.answer(
-        "Jamoalarni kiriting:\n\n"
-        "Misol:\n"
-        "Andijon-Nasaf"
-    )
-
-@dp.message()
-async def create_match_steps(message: Message):
-
-    if message.text == "⚽ Match Yaratish":
-        return
-    
-    if message.from_user.id not in match_create_admins:
-        return
-
-    state = match_create_admins[
-        message.from_user.id
-    ]
-
-    if state["step"] == 1:
-
-        if "-" not in message.text:
-
-            await message.answer(
-                "Misol:\nAndijon-Nasaf"
-            )
-            return
-
-        home, away = message.text.split("-")
-
-        state["home"] = home.strip()
-        state["away"] = away.strip()
-        state["step"] = 2
-
-        await message.answer(
-            "Sana va vaqt kiriting:\n\n"
+            "Sana va vaqt kiriting\n\n"
             "Misol:\n"
             "2025-08-20 20:00"
         )
@@ -700,15 +560,14 @@ async def create_match_steps(message: Message):
         try:
 
             match_date = datetime.strptime(
-                message.text,
+                message.text.strip(),
                 "%Y-%m-%d %H:%M"
             )
 
         except:
 
             await message.answer(
-                "Format:\n"
-                "2025-08-20 20:00"
+                "Format:\n2025-08-20 20:00"
             )
             return
 
@@ -717,7 +576,8 @@ async def create_match_steps(message: Message):
             match = Match(
                 home_team=state["home"],
                 away_team=state["away"],
-                match_date=match_date
+                match_date=match_date,
+                active=True
             )
 
             session.add(match)
@@ -733,35 +593,7 @@ async def create_match_steps(message: Message):
             f"⚽ {state['home']} vs {state['away']}\n"
             f"📅 {match_date.strftime('%d.%m.%Y %H:%M')}"
         )
-    
 
-@dp.message(F.text == "🏁 Natija Kiritish")
-async def result_enter(message: Message):
-
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    result_admins.add(
-        message.from_user.id
-    )
-
-    await message.answer(
-        "Hisobni kiriting.\n\n"
-        "Misol:\n"
-        "2:1"
-    )
-
-def winner(score):
-
-    h, a = map(int, score.split(":"))
-
-    if h > a:
-        return "home"
-
-    if h < a:
-        return "away"
-
-    return "draw"
 
 
 
