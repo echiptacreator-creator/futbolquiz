@@ -217,10 +217,6 @@ dp = Dispatcher()
 @dp.message(CommandStart())
 async def start_cmd(message: Message):
 
-    print("START =", message.text)
-    print("USER =", message.from_user.id)
-    print("REF =", ref_id)
-    
     ref_id = None
 
     args = message.text.split()
@@ -230,6 +226,10 @@ async def start_cmd(message: Message):
         if args[1].isdigit():
 
             ref_id = int(args[1])
+
+    print("START =", message.text)
+    print("USER =", message.from_user.id)
+    print("REF =", ref_id)
 
     await get_or_create_user(
         message,
