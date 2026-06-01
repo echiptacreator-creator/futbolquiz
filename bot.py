@@ -20,7 +20,14 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker
 )
-
+from aiogram.types import (
+    Message,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery
+)
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -962,11 +969,9 @@ async def my_predictions(message: Message):
                 Prediction.match_id == Match.id
             )
             .where(
-                Prediction.user_id
-                == message.from_user.id
-            )
-            .order_by(
-                Match.match_date.desc()
+                Prediction.user_id ==
+                message.from_user.id,
+                Match.active == True
             )
         )
 
@@ -975,120 +980,121 @@ async def my_predictions(message: Message):
     if not rows:
 
         await message.answer(
-            "📭 Siz hali prognoz bermagansiz."
+            "📭 Aktiv prognozlaringiz yo'q."
         )
         return
 
-    text = "📊 Mening prognozlarim\n\n"
-
     for prediction, match in rows:
-    
-        status = "🟢 Aktiv"
-    
-        if not match.active:
-            status = "🔴 Tugagan"
-    
-        text += (
+
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="✏️ O'zgartirish",
+                        callback_data=
+                        f"edit_{match.id}"
+                    )
+                ]
+            ]
+        )
+
+        await message.answer(
             f"⚽ {match.home_team} vs "
             f"{match.away_team}\n"
             f"📅 {match.match_date.strftime('%d.%m.%Y %H:%M')}\n"
-            f"📊 Prognoz: {prediction.score}\n"
-            f"{status}\n\n"
+            f"📊 Prognoz: {prediction.score}",
+            reply_markup=kb
         )
-    
-    text += (
-        "\n✏️ Prognozni o'zgartirish uchun "
-        "match ID yuboring."
+
+@dp.callback_query(
+    F.data.startswith("edit_")
+)
+async def edit_prediction_callback(
+    callback: CallbackQuery
+):
+
+    match_id = int(
+        callback.data.split("_")[1]
     )
-    
+
     edit_prediction_states[
-        message.from_user.id
+        callback.from_user.id
     ] = {
-        "step": 1
+        "match_id": match_id
     }
-    
-    await message.answer(text)
 
+    await callback.message.answer(
+        "Yangi prognozni kiriting\n\n"
+        "Misol: 3:1"
+    )
 
+    await callback.answer()
 
 
 @dp.message(
     lambda m:
     m.from_user.id in edit_prediction_states
 )
-async def edit_prediction(message: Message):
+async def save_edited_prediction(
+    message: Message
+):
 
-    state = edit_prediction_states[
-        message.from_user.id
-    ]
+    score = message.text.strip()
+
+    if ":" not in score:
+
+        await message.answer(
+            "Misol: 2:1"
+        )
+        return
 
     async with SessionLocal() as session:
 
-        if state["step"] == 1:
+        state = edit_prediction_states[
+            message.from_user.id
+        ]
 
-            if not message.text.isdigit():
-                return
+        match = await session.get(
+            Match,
+            state["match_id"]
+        )
 
-            match_id = int(message.text)
-
-            result = await session.execute(
-                select(Prediction)
-                .where(
-                    Prediction.user_id
-                    == message.from_user.id,
-                    Prediction.match_id
-                    == match_id
-                )
-            )
-
-            prediction = result.scalar_one_or_none()
-
-            if not prediction:
-
-                await message.answer(
-                    "❌ Prognoz topilmadi"
-                )
-                return
-
-            state["match_id"] = match_id
-            state["step"] = 2
-
-            await message.answer(
-                "Yangi prognozni kiriting\n\n"
-                "Misol: 3:1"
-            )
-
-            return
-
-        if state["step"] == 2:
-
-            score = message.text.strip()
-
-            result = await session.execute(
-                select(Prediction)
-                .where(
-                    Prediction.user_id
-                    == message.from_user.id,
-                    Prediction.match_id
-                    == state["match_id"]
-                )
-            )
-
-            prediction = result.scalar_one()
-
-            prediction.score = score
-
-            await session.commit()
+        if datetime.now() >= match.match_date:
 
             del edit_prediction_states[
                 message.from_user.id
             ]
 
             await message.answer(
-                f"✅ Prognoz yangilandi\n\n"
-                f"⚽ Yangi prognoz: {score}"
+                "❌ Match boshlangan.\n"
+                "Prognozni o'zgartirib bo'lmaydi."
             )
+            return
 
+        result = await session.execute(
+            select(Prediction)
+            .where(
+                Prediction.user_id ==
+                message.from_user.id,
+                Prediction.match_id ==
+                state["match_id"]
+            )
+        )
+
+        prediction = result.scalar_one()
+
+        prediction.score = score
+
+        await session.commit()
+
+    del edit_prediction_states[
+        message.from_user.id
+    ]
+
+    await message.answer(
+        f"✅ Prognoz yangilandi\n\n"
+        f"📊 Yangi prognoz: {score}"
+    )
 
 
 
