@@ -36,7 +36,10 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-ADMIN_IDS=515902673,7988918836
+ADMIN_IDS = [
+    515902673,
+    7988918836
+]
 
 MAIN_CHANNEL = "@andijonpfc"
 
@@ -413,19 +416,13 @@ async def daily_bonus(message: Message):
         )
 
 
-        today = date.today()
-        
-        if user.last_bonus == today:
-        
-            await message.answer(
-                "⏳ Bugungi bonusni olib bo'lgansiz"
-            )
-            return
-        
-        user.balls += 5
-        user.last_bonus = today
+
 
 #sovrinlar tugmmasi va oshani menyusi
+
+
+
+
 
 
 @dp.message(F.text == "🎁 Sovrinlar")
@@ -558,9 +555,11 @@ async def create_match(message: Message):
         return
 
     CURRENT_MATCH["active"] = True
+    CURRENT_MATCH["home"] = "Andijon"
+    CURRENT_MATCH["away"] = "Nasaf"
 
     await message.answer(
-        "✅ Match prognozi ochildi"
+        "✅ Andijon vs Nasaf prognozi ochildi"
     )
 
 @dp.message(F.text == "🏁 Natija Kiritish")
@@ -598,6 +597,7 @@ async def result_input(message: Message):
 
     if message.from_user.id not in result_admins:
         return
+
 
     result_score = message.text.strip()
 
