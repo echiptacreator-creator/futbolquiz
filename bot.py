@@ -483,8 +483,8 @@ async def prediction_menu(message: Message):
 
 @dp.message()
 async def prediction_input(message: Message):
-
-    if message.from_user.id not in prediction_users:
+    
+    if message.from_user.id in result_admins:
         return
 
     text = message.text.strip()
@@ -634,7 +634,19 @@ async def result_input(message: Message):
         f"⚽ G'olibni topgan: {winners}"
     )
 
+@dp.message(F.text == "⚽ Match Yaratish")
+async def create_match(message: Message):
 
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    CURRENT_MATCH["active"] = True
+    CURRENT_MATCH["home"] = "Andijon"
+    CURRENT_MATCH["away"] = "Nasaf"
+
+    await message.answer(
+        "✅ Andijon vs Nasaf prognozi ochildi"
+    )
 
 
 
