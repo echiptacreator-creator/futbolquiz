@@ -1,7 +1,5 @@
 import os
-
-print("PID =", os.getpid())
-
+from sqlalchemy import DateTime
 import asyncio
 import logging
 from sqlalchemy import select
@@ -71,6 +69,68 @@ class Base(DeclarativeBase):
 
 prediction_users = set()
 result_admins = set()
+match_create_admins = {}
+
+
+
+
+
+class Match(Base):
+
+    __tablename__ = "matches"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    home_team: Mapped[str] = mapped_column(
+        String(100)
+    )
+
+    away_team: Mapped[str] = mapped_column(
+        String(100)
+    )
+
+    match_date: Mapped[datetime] = mapped_column(
+        DateTime
+    )
+
+    active: Mapped[bool] = mapped_column(
+        default=True
+    )
+
+    result: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True
+    )
+
+
+
+
+class Prediction(Base):
+
+    __tablename__ = "predictions"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger
+    )
+
+    match_id: Mapped[int] = mapped_column(
+        Integer
+    )
+
+    score: Mapped[str] = mapped_column(
+        String(20)
+    )
+
 
 
 
@@ -665,20 +725,89 @@ async def create_match(message: Message):
 
     if message.from_user.id not in ADMIN_IDS:
         return
-    
-    print("MATCH BUTTON BOSILDI")
-    print("prediction_users =", prediction_users)
-    print("result_admins =", result_admins)
 
-    CURRENT_MATCH["active"] = True
-    CURRENT_MATCH["home"] = "Andijon"
-    CURRENT_MATCH["away"] = "Nasaf"
-
-    print(CURRENT_MATCH)
+    match_create_admins[message.from_user.id] = {
+        "step": 1
+    }
 
     await message.answer(
-        "✅ Andijon vs Nasaf prognozi ochildi"
+        "Jamoalarni kiriting:\n\n"
+        "Misol:\n"
+        "Andijon-Nasaf"
     )
+
+@dp.message()
+async def create_match_steps(message: Message):
+
+    if message.from_user.id not in match_create_admins:
+        return
+
+    state = match_create_admins[
+        message.from_user.id
+    ]
+
+    if state["step"] == 1:
+
+        if "-" not in message.text:
+
+            await message.answer(
+                "Misol:\nAndijon-Nasaf"
+            )
+            return
+
+        home, away = message.text.split("-")
+
+        state["home"] = home.strip()
+        state["away"] = away.strip()
+        state["step"] = 2
+
+        await message.answer(
+            "Sana va vaqt kiriting:\n\n"
+            "Misol:\n"
+            "2025-08-20 20:00"
+        )
+
+        return
+        
+            if state["step"] == 2:
+
+                try:
+        
+                    match_date = datetime.strptime(
+                        message.text,
+                        "%Y-%m-%d %H:%M"
+                    )
+        
+                except:
+        
+                    await message.answer(
+                        "Format:\n"
+                        "2025-08-20 20:00"
+                    )
+                    return
+        
+                async with SessionLocal() as session:
+        
+                    match = Match(
+                        home_team=state["home"],
+                        away_team=state["away"],
+                        match_date=match_date
+                    )
+        
+                    session.add(match)
+        
+                    await session.commit()
+        
+                del match_create_admins[
+                    message.from_user.id
+                ]
+        
+                await message.answer(
+                    f"✅ Match yaratildi\n\n"
+                    f"⚽ {state['home']} vs {state['away']}\n"
+                    f"📅 {match_date.strftime('%d.%m.%Y %H:%M')}"
+                )
+
     
 
 @dp.message(F.text == "🏁 Natija Kiritish")
