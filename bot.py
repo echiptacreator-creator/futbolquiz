@@ -173,6 +173,65 @@ async def get_or_create_user(
 
         return user
 
+
+
+
+class Match(Base):
+
+    __tablename__ = "matches"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    home_team: Mapped[str] = mapped_column(
+        String(100)
+    )
+
+    away_team: Mapped[str] = mapped_column(
+        String(100)
+    )
+
+    active: Mapped[int] = mapped_column(
+        Integer,
+        default=1
+    )
+
+    result: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True
+    )
+
+
+
+class Prediction(Base):
+
+    __tablename__ = "predictions"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger
+    )
+
+    match_id: Mapped[int] = mapped_column(
+        Integer
+    )
+
+    score: Mapped[str] = mapped_column(
+        String(20)
+    )
+
+
+
+
+
 async def create_tables():
 
     async with engine.begin() as conn:
