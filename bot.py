@@ -768,46 +768,45 @@ async def create_match_steps(message: Message):
         )
 
         return
-        
-            if state["step"] == 2:
 
-                try:
-        
-                    match_date = datetime.strptime(
-                        message.text,
-                        "%Y-%m-%d %H:%M"
-                    )
-        
-                except:
-        
-                    await message.answer(
-                        "Format:\n"
-                        "2025-08-20 20:00"
-                    )
-                    return
-        
-                async with SessionLocal() as session:
-        
-                    match = Match(
-                        home_team=state["home"],
-                        away_team=state["away"],
-                        match_date=match_date
-                    )
-        
-                    session.add(match)
-        
-                    await session.commit()
-        
-                del match_create_admins[
-                    message.from_user.id
-                ]
-        
-                await message.answer(
-                    f"✅ Match yaratildi\n\n"
-                    f"⚽ {state['home']} vs {state['away']}\n"
-                    f"📅 {match_date.strftime('%d.%m.%Y %H:%M')}"
-                )
+    if state["step"] == 2:
 
+        try:
+
+            match_date = datetime.strptime(
+                message.text,
+                "%Y-%m-%d %H:%M"
+            )
+
+        except:
+
+            await message.answer(
+                "Format:\n"
+                "2025-08-20 20:00"
+            )
+            return
+
+        async with SessionLocal() as session:
+
+            match = Match(
+                home_team=state["home"],
+                away_team=state["away"],
+                match_date=match_date
+            )
+
+            session.add(match)
+
+            await session.commit()
+
+        del match_create_admins[
+            message.from_user.id
+        ]
+
+        await message.answer(
+            f"✅ Match yaratildi\n\n"
+            f"⚽ {state['home']} vs {state['away']}\n"
+            f"📅 {match_date.strftime('%d.%m.%Y %H:%M')}"
+        )
     
 
 @dp.message(F.text == "🏁 Natija Kiritish")
