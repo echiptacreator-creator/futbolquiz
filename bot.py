@@ -66,6 +66,9 @@ class Base(DeclarativeBase):
 #user bo`limi manashuyerdaaa
 
 
+prediction_users = set()
+result_admins = set()
+
 
 class User(Base):
 
@@ -103,15 +106,12 @@ class User(Base):
     last_bonus: Mapped[datetime | None] = mapped_column(
     DateTime,
     nullable=True
-        
     )
-    
+     
     prediction: Mapped[str | None] = mapped_column(
-    String(50),
+    String(20),
     nullable=True
-        
     )
-
 async def get_or_create_user(
     message: Message,
     ref_id=None
@@ -432,6 +432,188 @@ async def tasks_handler(message: Message):
         "⚽ Match prognoz qiling (+50)\n\n"
         "Ko‘proq ball = sovringa yaqinroq"
     )
+
+
+#MATCH PROGNOZ MENYUSI TUGMASI FUNKTSIYASI
+
+
+
+@dp.message(F.text == "⚽ Match Prognoz")
+async def prediction_menu(message: Message):
+
+    if not CURRENT_MATCH["active"]:
+
+        await message.answer(
+            "⚽ Hozir aktiv prognoz yo'q"
+        )
+
+        return
+
+    prediction_users.add(
+        message.from_user.id
+    )
+
+    await message.answer(
+        f"⚽ {CURRENT_MATCH['home']} vs {CURRENT_MATCH['away']}\n\n"
+        "Hisobni kiriting.\n\n"
+        "Misol:\n"
+        "2:1"
+    )
+
+#HISOBNI QABUL QILISH
+
+@dp.message()
+async def prediction_input(message: Message):
+
+    if message.from_user.id not in prediction_users:
+        return
+
+    text = message.text.strip()
+
+    if ":" not in text:
+
+        await message.answer(
+            "❌ Format noto'g'ri\n\n"
+            "Misol: 2:1"
+        )
+
+        return
+
+    try:
+
+        home, away = text.split(":")
+
+        int(home)
+        int(away)
+
+    except:
+
+        await message.answer(
+            "❌ Misol: 2:1"
+        )
+
+        return
+
+    async with SessionLocal() as session:
+
+        user = await session.get(
+            User,
+            message.from_user.id
+        )
+
+        user.prediction = text
+
+        user.balls += 2
+
+        await session.commit()
+
+    prediction_users.discard(
+        message.from_user.id
+    )
+
+    await message.answer(
+        f"✅ Prognoz saqlandi\n\n"
+        f"Siz: {text}\n\n"
+        f"🏅 +2 ball",
+        reply_markup=user_menu
+    )
+
+
+#################################################
+#            ADMIN BOLIMI
+#################################################
+
+@dp.message(F.text == "⚽ Match Yaratish")
+async def create_match(message: Message):
+
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    CURRENT_MATCH["active"] = True
+
+    await message.answer(
+        "✅ Match prognozi ochildi"
+    )
+
+@dp.message(F.text == "🏁 Natija Kiritish")
+async def result_enter(message: Message):
+
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    result_admins.add(
+        message.from_user.id
+    )
+
+    await message.answer(
+        "Hisobni kiriting.\n\n"
+        "Misol:\n"
+        "2:1"
+    )
+
+def winner(score):
+
+    h, a = map(int, score.split(":"))
+
+    if h > a:
+        return "home"
+
+    if h < a:
+        return "away"
+
+    return "draw"
+
+@dp.message()
+async def result_input(message: Message):
+
+    if message.from_user.id not in result_admins:
+        return
+
+    result_score = message.text.strip()
+
+    async with SessionLocal() as session:
+
+        result = await session.execute(
+            select(User)
+        )
+
+        users = result.scalars().all()
+
+        exact = 0
+        winners = 0
+
+        for user in users:
+
+            if not user.prediction:
+                continue
+
+            if user.prediction == result_score:
+
+                user.balls += 100
+                exact += 1
+
+            elif winner(user.prediction) == winner(result_score):
+
+                user.balls += 40
+                winners += 1
+
+            user.prediction = None
+
+        await session.commit()
+
+    result_admins.discard(
+        message.from_user.id
+    )
+
+    CURRENT_MATCH["active"] = False
+
+    await message.answer(
+        f"🏆 Natija hisoblandi\n\n"
+        f"🎯 To'g'ri hisob: {exact}\n"
+        f"⚽ G'olibni topgan: {winners}"
+    )
+
+
 
 
 
