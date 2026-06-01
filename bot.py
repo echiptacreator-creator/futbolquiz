@@ -169,11 +169,6 @@ class User(Base):
     DateTime,
     nullable=True
     )
-     
-    prediction: Mapped[str | None] = mapped_column(
-    String(20),
-    nullable=True
-    )
 
 
 
@@ -521,7 +516,10 @@ async def create_match(message: Message):
     )
 
 
-@dp.message()
+@dp.message(
+    lambda m:
+    m.from_user.id in match_create_admins
+)
 async def create_match_steps(message: Message):
 
     if message.from_user.id not in match_create_admins:
@@ -641,7 +639,10 @@ async def prediction_menu(message: Message):
 
 
 
-@dp.message()
+@dp.message(
+    lambda m:
+    m.from_user.id in prediction_states
+)
 async def prediction_steps(message: Message):
 
     if message.from_user.id not in prediction_states:
