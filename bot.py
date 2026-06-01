@@ -681,6 +681,9 @@ async def create_match(message: Message):
 @dp.message()
 async def create_match_steps(message: Message):
 
+    if message.text == "⚽ Match Yaratish":
+        return
+    
     if message.from_user.id not in match_create_admins:
         return
 
