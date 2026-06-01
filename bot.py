@@ -636,10 +636,6 @@ async def result_menu(message: Message):
         "\nMatch ID sini yuboring"
     )
 
-@dp.message(
-    lambda m:
-    m.from_user.id in result_states
-)
 
 def get_winner(score):
 
@@ -654,6 +650,11 @@ def get_winner(score):
     return "draw"
 
 
+
+@dp.message(
+    lambda m:
+    m.from_user.id in result_states
+)
 async def result_steps(message: Message):
 
     state = result_states[
