@@ -629,25 +629,26 @@ async def result_menu(message: Message):
         )
         return
 
-    text = "🏁 Natija kiritiladigan o'yinlar\n\n"
+    keyboard = []
 
     for match in matches:
 
-        text += (
-            f"{match.id}. "
-            f"{match.home_team} vs "
-            f"{match.away_team}\n"
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=f"⚽ {match.home_team} vs {match.away_team}",
+                    callback_data=f"result_{match.id}"
+                )
+            ]
         )
 
-    result_states[
-        message.from_user.id
-    ] = {
-        "step": 1
-    }
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=keyboard
+    )
 
     await message.answer(
-        text +
-        "\nMatch ID sini yuboring"
+        "🏁 Natija kiritiladigan matchni tanlang",
+        reply_markup=kb
     )
 
 
@@ -665,138 +666,127 @@ def get_winner(score):
 
 
 
+@dp.callback_query(
+    F.data.startswith("result_")
+)
+async def result_callback(
+    callback: CallbackQuery
+):
+
+    match_id = int(
+        callback.data.split("_")[1]
+    )
+
+    result_states[
+        callback.from_user.id
+    ] = {
+        "match_id": match_id
+    }
+
+    async with SessionLocal() as session:
+
+        match = await session.get(
+            Match,
+            match_id
+        )
+
+    await callback.message.answer(
+        f"⚽ {match.home_team} vs {match.away_team}\n\n"
+        f"Natijani kiriting\n"
+        f"Misol: 2:1"
+    )
+
+    await callback.answer()
+
 @dp.message(
     lambda m:
     m.from_user.id in result_states
 )
-async def result_steps(message: Message):
+async def save_result(
+    message: Message
+):
 
-    state = result_states[
-        message.from_user.id
-    ]
+    score = message.text.strip()
+
+    if ":" not in score:
+
+        await message.answer(
+            "Misol: 2:1"
+        )
+        return
 
     async with SessionLocal() as session:
 
-        if state["step"] == 1:
+        state = result_states[
+            message.from_user.id
+        ]
 
-            if not message.text.isdigit():
+        match = await session.get(
+            Match,
+            state["match_id"]
+        )
 
-                await message.answer(
-                    "Match ID yuboring"
-                )
-                return
+        match.result = score
+        match.active = False
 
-            match_id = int(message.text)
+        result = await session.execute(
+            select(Prediction)
+            .where(
+                Prediction.match_id == match.id
+            )
+        )
 
-            match = await session.get(
-                Match,
-                match_id
+        predictions = result.scalars().all()
+
+        for prediction in predictions:
+
+            user = await session.get(
+                User,
+                prediction.user_id
             )
 
-            if not match:
+            reward = 0
 
-                await message.answer(
-                    "❌ Match topilmadi"
-                )
-                return
+            if prediction.score == score:
 
-            state["match_id"] = match_id
-            state["step"] = 2
+                reward = 100
 
-            await message.answer(
-                "Natijani kiriting\n\n"
-                "Misol: 2:1"
-            )
+            elif (
+                get_winner(prediction.score)
+                ==
+                get_winner(score)
+            ):
 
-            return
+                reward = 40
 
-        if state["step"] == 2:
+            user.balls += reward
 
-            score = message.text.strip()
+            try:
 
-            if ":" not in score:
+                if reward > 0:
 
-                await message.answer(
-                    "Misol: 2:1"
-                )
-                return
+                    await bot.send_message(
+                        prediction.user_id,
+                        f"🎉 Prognoz natijasi!\n\n"
+                        f"⚽ {match.home_team} vs {match.away_team}\n"
+                        f"🏁 Natija: {score}\n\n"
+                        f"🏅 Siz +{reward} ball oldingiz!"
+                    )
 
-            match = await session.get(
-                Match,
-                state["match_id"]
-            )
+            except:
+                pass
 
-            match.result = score
-            match.active = False
-            
-            result = await session.execute(
-                select(Prediction)
-                .where(
-                    Prediction.match_id == match.id
-                )
-            )
-            
-            predictions = result.scalars().all()
-            
-            for prediction in predictions:
-            
-                user = await session.get(
-                    User,
-                    prediction.user_id
-                )
-            
-                reward = 0
-            
-                if prediction.score == score:
-            
-                    reward = 100
-            
-                elif (
-                    get_winner(prediction.score)
-                    ==
-                    get_winner(score)
-                ):
-            
-                    reward = 40
-            
-                user.balls += reward
-            
-                try:
-            
-                    if reward > 0:
-            
-                        await bot.send_message(
-                            prediction.user_id,
-                            f"🎉 Prognoz natijasi!\n\n"
-                            f"⚽ {match.home_team} vs {match.away_team}\n"
-                            f"🏁 Natija: {score}\n\n"
-                            f"🏅 Siz +{reward} ball oldingiz!"
-                        )
-            
-                    else:
-            
-                        await bot.send_message(
-                            prediction.user_id,
-                            f"😔 Prognoz natijasi\n\n"
-                            f"⚽ {match.home_team} vs {match.away_team}\n"
-                            f"🏁 Natija: {score}\n\n"
-                            f"Bu safar ball olmadingiz."
-                        )
-            
-                except:
-                    pass
-            
-            await session.commit()
+        await session.commit()
 
-            del result_states[
-                message.from_user.id
-            ]
+    del result_states[
+        message.from_user.id
+    ]
 
-            await message.answer(
-                f"✅ Natija saqlandi\n\n"
-                f"⚽ {match.home_team} vs {match.away_team}\n"
-                f"🏁 {score}"
-            )
+    await message.answer(
+        f"✅ Natija saqlandi\n\n"
+        f"⚽ {match.home_team} vs {match.away_team}\n"
+        f"🏁 {score}"
+    )
 
 
 
