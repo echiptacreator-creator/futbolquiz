@@ -820,140 +820,139 @@ async def prediction_menu(message: Message):
         )
         return
 
-    text = "⚽ Aktiv o'yinlar\n\n"
+    keyboard = []
 
     for match in matches:
 
-        text += (
-            f"{match.id}. "
-            f"{match.home_team} vs "
-            f"{match.away_team}\n"
-            f"📅 {match.match_date.strftime('%d.%m.%Y %H:%M')}\n\n"
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=f"⚽ {match.home_team} vs {match.away_team}",
+                    callback_data=f"predict_{match.id}"
+                )
+            ]
         )
 
-    prediction_states[
-        message.from_user.id
-    ] = {
-        "step": 1
-    }
-
-    await message.answer(
-        text +
-        "\nPrognoz qilmoqchi bo'lgan "
-        "o'yin ID sini yuboring."
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=keyboard
     )
 
+    await message.answer(
+        "⚽ Prognoz uchun match tanlang",
+        reply_markup=kb
+    )
+
+
+
+@dp.callback_query(
+    F.data.startswith("predict_")
+)
+async def prediction_callback(
+    callback: CallbackQuery
+):
+
+    match_id = int(
+        callback.data.split("_")[1]
+    )
+
+    prediction_states[
+        callback.from_user.id
+    ] = {
+        "match_id": match_id
+    }
+
+    async with SessionLocal() as session:
+
+        match = await session.get(
+            Match,
+            match_id
+        )
+
+    await callback.message.answer(
+        f"⚽ {match.home_team} vs {match.away_team}\n\n"
+        f"Hisob kiriting\n"
+        f"Misol: 2:1"
+    )
+
+    await callback.answer()
 
 
 @dp.message(
     lambda m:
     m.from_user.id in prediction_states
 )
-async def prediction_steps(message: Message):
+async def save_prediction(
+    message: Message
+):
 
-    if message.from_user.id not in prediction_states:
+    score = message.text.strip()
+
+    if ":" not in score:
+
+        await message.answer(
+            "Misol: 2:1"
+        )
         return
-
-    state = prediction_states[
-        message.from_user.id
-    ]
 
     async with SessionLocal() as session:
 
-        if state["step"] == 1:
+        state = prediction_states[
+            message.from_user.id
+        ]
 
-            if not message.text.isdigit():
+        match = await session.get(
+            Match,
+            state["match_id"]
+        )
 
-                await message.answer(
-                    "O'yin ID sini yuboring."
-                )
-                return
-
-            match_id = int(message.text)
-
-            match = await session.get(
-                Match,
-                match_id
-            )
-
-            if not match:
-
-                await message.answer(
-                    "❌ O'yin topilmadi"
-                )
-                return
-
-            state["match_id"] = match_id
-            state["step"] = 2
-
-            await message.answer(
-                f"⚽ {match.home_team} vs {match.away_team}\n\n"
-                f"Hisob kiriting\n"
-                f"Misol: 2:1"
-            )
-
-            return
-
-        if state["step"] == 2:
-
-            score = message.text.strip()
-
-            if ":" not in score:
-
-                await message.answer(
-                    "Misol: 2:1"
-                )
-                return
-
-            try:
-
-                home, away = score.split(":")
-                int(home)
-                int(away)
-
-            except:
-
-                await message.answer(
-                    "Misol: 2:1"
-                )
-                return
-
-            existing = await session.execute(
-                select(Prediction)
-                .where(
-                    Prediction.user_id
-                    == message.from_user.id,
-                    Prediction.match_id
-                    == state["match_id"]
-                )
-            )
-
-            prediction = existing.scalar_one_or_none()
-
-            if prediction:
-
-                prediction.score = score
-
-            else:
-
-                session.add(
-                    Prediction(
-                        user_id=message.from_user.id,
-                        match_id=state["match_id"],
-                        score=score
-                    )
-                )
-
-            await session.commit()
+        if datetime.now() >= match.match_date:
 
             del prediction_states[
                 message.from_user.id
             ]
 
             await message.answer(
-                f"✅ Prognoz saqlandi\n\n"
-                f"⚽ Sizning prognozingiz: {score}"
+                "❌ Match boshlangan."
             )
+            return
+
+        result = await session.execute(
+            select(Prediction)
+            .where(
+                Prediction.user_id ==
+                message.from_user.id,
+                Prediction.match_id ==
+                state["match_id"]
+            )
+        )
+
+        prediction = result.scalar_one_or_none()
+
+        if prediction:
+
+            prediction.score = score
+
+        else:
+
+            session.add(
+                Prediction(
+                    user_id=message.from_user.id,
+                    match_id=state["match_id"],
+                    score=score
+                )
+            )
+
+        await session.commit()
+
+    del prediction_states[
+        message.from_user.id
+    ]
+
+    await message.answer(
+        f"✅ Prognoz saqlandi\n\n"
+        f"📊 Sizning prognozingiz: {score}"
+    )
+
 
 
 
