@@ -67,9 +67,13 @@ class Base(DeclarativeBase):
 #user bo`limi manashuyerdaaa
 
 
+
 match_create_admins = {}
 prediction_states = {}
 result_states = {}
+edit_prediction_states = {}
+
+
 
 
 class Match(Base):
@@ -238,6 +242,9 @@ user_menu = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="🔥 Kunlik Bonus"),
             KeyboardButton(text="⚽ Match Prognoz")
+        ],
+        [
+            KeyboardButton(text="📊 Mening Prognozlarim")
         ],
         [
             KeyboardButton(text="🎁 Sovrinlar"),
@@ -939,6 +946,147 @@ async def prediction_steps(message: Message):
             await message.answer(
                 f"✅ Prognoz saqlandi\n\n"
                 f"⚽ Sizning prognozingiz: {score}"
+            )
+
+
+
+@dp.message(F.text == "📊 Mening Prognozlarim")
+async def my_predictions(message: Message):
+
+    async with SessionLocal() as session:
+
+        result = await session.execute(
+            select(Prediction, Match)
+            .join(
+                Match,
+                Prediction.match_id == Match.id
+            )
+            .where(
+                Prediction.user_id
+                == message.from_user.id
+            )
+            .order_by(
+                Match.match_date.desc()
+            )
+        )
+
+        rows = result.all()
+
+    if not rows:
+
+        await message.answer(
+            "📭 Siz hali prognoz bermagansiz."
+        )
+        return
+
+    text = "📊 Mening prognozlarim\n\n"
+
+    for prediction, match in rows:
+    
+        status = "🟢 Aktiv"
+    
+        if not match.active:
+            status = "🔴 Tugagan"
+    
+        text += (
+            f"⚽ {match.home_team} vs "
+            f"{match.away_team}\n"
+            f"📅 {match.match_date.strftime('%d.%m.%Y %H:%M')}\n"
+            f"📊 Prognoz: {prediction.score}\n"
+            f"{status}\n\n"
+        )
+    
+    text += (
+        "\n✏️ Prognozni o'zgartirish uchun "
+        "match ID yuboring."
+    )
+    
+    edit_prediction_states[
+        message.from_user.id
+    ] = {
+        "step": 1
+    }
+    
+    await message.answer(text)
+
+
+
+
+@dp.message(
+    lambda m:
+    m.from_user.id in edit_prediction_states
+)
+async def edit_prediction(message: Message):
+
+    state = edit_prediction_states[
+        message.from_user.id
+    ]
+
+    async with SessionLocal() as session:
+
+        if state["step"] == 1:
+
+            if not message.text.isdigit():
+                return
+
+            match_id = int(message.text)
+
+            result = await session.execute(
+                select(Prediction)
+                .where(
+                    Prediction.user_id
+                    == message.from_user.id,
+                    Prediction.match_id
+                    == match_id
+                )
+            )
+
+            prediction = result.scalar_one_or_none()
+
+            if not prediction:
+
+                await message.answer(
+                    "❌ Prognoz topilmadi"
+                )
+                return
+
+            state["match_id"] = match_id
+            state["step"] = 2
+
+            await message.answer(
+                "Yangi prognozni kiriting\n\n"
+                "Misol: 3:1"
+            )
+
+            return
+
+        if state["step"] == 2:
+
+            score = message.text.strip()
+
+            result = await session.execute(
+                select(Prediction)
+                .where(
+                    Prediction.user_id
+                    == message.from_user.id,
+                    Prediction.match_id
+                    == state["match_id"]
+                )
+            )
+
+            prediction = result.scalar_one()
+
+            prediction.score = score
+
+            await session.commit()
+
+            del edit_prediction_states[
+                message.from_user.id
+            ]
+
+            await message.answer(
+                f"✅ Prognoz yangilandi\n\n"
+                f"⚽ Yangi prognoz: {score}"
             )
 
 
