@@ -89,8 +89,16 @@ class User(Base):
         Integer,
         default=0
     )
+    
+    ref_by: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True
+    )
 
-async def get_or_create_user(message: Message):
+async def get_or_create_user(
+    message: Message,
+    ref_id=None
+):
 
     async with SessionLocal() as session:
 
@@ -99,17 +107,34 @@ async def get_or_create_user(message: Message):
             message.from_user.id
         )
 
-        if not user:
+        if user:
+            return user
 
-            user = User(
-                tg_id=message.from_user.id,
-                full_name=message.from_user.full_name,
-                username=message.from_user.username
+        user = User(
+            tg_id=message.from_user.id,
+            full_name=message.from_user.full_name,
+            username=message.from_user.username,
+            ref_by=ref_id
+        )
+
+        session.add(user)
+
+        if (
+            ref_id
+            and ref_id != message.from_user.id
+        ):
+
+            ref_user = await session.get(
+                User,
+                ref_id
             )
 
-            session.add(user)
+            if ref_user:
 
-            await session.commit()
+                ref_user.referrals += 1
+                ref_user.balls += 30
+
+        await session.commit()
 
         return user
 
@@ -172,10 +197,30 @@ bot = Bot(
 
 dp = Dispatcher()
 
+
+
+# START KOMANDASI BOTNI ISHLATISH
+
+
+
+@dp.message(CommandStart())
 @dp.message(CommandStart())
 async def start_cmd(message: Message):
 
-    await get_or_create_user(message)
+    ref_id = None
+
+    args = message.text.split()
+
+    if len(args) > 1:
+
+        if args[1].isdigit():
+
+            ref_id = int(args[1])
+
+    await get_or_create_user(
+        message,
+        ref_id
+    )
 
     await message.answer(
         "⚽ Andijon FC Fan Challenge\n\n"
@@ -183,7 +228,11 @@ async def start_cmd(message: Message):
         reply_markup=user_menu
     )
 
+
+
 # PROFIL TUGMASI MENYUSI
+
+
 
 @dp.message(F.text == "👤 Profilim")
 async def profile_handler(message: Message):
@@ -211,7 +260,11 @@ async def profile_handler(message: Message):
     )
     
 
+
 # REYTING MENUSI TUGMASI
+
+
+
 
 @dp.message(F.text == "🏆 Reyting")
 async def leaderboard_handler(message: Message):
@@ -239,7 +292,36 @@ async def leaderboard_handler(message: Message):
     await message.answer(text)
 
 
+# referal linkt tugmasi funktsiyasi
 
+
+
+@dp.message(F.text == "🔗 Taklif qilish")
+async def referral_handler(message: Message):
+
+    me = await bot.get_me()
+
+    link = (
+        f"https://t.me/"
+        f"{me.username}"
+        f"?start={message.from_user.id}"
+    )
+
+    async with SessionLocal() as session:
+
+        user = await session.get(
+            User,
+            message.from_user.id
+        )
+
+    await message.answer(
+        f"🔗 Sizning referral linkingiz:\n\n"
+        f"{link}\n\n"
+        f"👥 Taklif qilganlar: "
+        f"{user.referrals}\n\n"
+        f"🏅 Har do'st uchun +30 ball"
+    )
+    
 
 
 
