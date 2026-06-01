@@ -1,7 +1,7 @@
 import os
 import asyncio
 import logging
-
+from sqlalchemy import select
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -90,6 +90,29 @@ class User(Base):
         default=0
     )
 
+async def get_or_create_user(message: Message):
+
+    async with SessionLocal() as session:
+
+        user = await session.get(
+            User,
+            message.from_user.id
+        )
+
+        if not user:
+
+            user = User(
+                tg_id=message.from_user.id,
+                full_name=message.from_user.full_name,
+                username=message.from_user.username
+            )
+
+            session.add(user)
+
+            await session.commit()
+
+        return user
+
 async def create_tables():
 
     async with engine.begin() as conn:
@@ -152,16 +175,68 @@ dp = Dispatcher()
 @dp.message(CommandStart())
 async def start_cmd(message: Message):
 
+    await get_or_create_user(message)
+
     await message.answer(
         "⚽ Andijon FC Fan Challenge\n\n"
         "Ball yig'ing va sovg'alarni qo'lga kiriting!",
         reply_markup=user_menu
     )
 
+# PROFIL TUGMASI MENYUSI
 
+@dp.message(F.text == "👤 Profilim")
+async def profile_handler(message: Message):
 
+    async with SessionLocal() as session:
 
+        user = await session.get(
+            User,
+            message.from_user.id
+        )
 
+    if not user:
+
+        await message.answer(
+            "Avval /start bosing"
+        )
+
+        return
+
+    await message.answer(
+        f"👤 Profil\n\n"
+        f"🏅 Ball: {user.balls}\n"
+        f"🔗 Referral: {user.referrals}\n"
+        f"🆔 ID: {user.tg_id}"
+    )
+    
+
+# REYTING MENUSI TUGMASI
+
+@dp.message(F.text == "🏆 Reyting")
+async def leaderboard_handler(message: Message):
+
+    async with SessionLocal() as session:
+
+        result = await session.execute(
+            select(User)
+            .order_by(User.balls.desc())
+            .limit(10)
+        )
+
+        users = result.scalars().all()
+
+    text = "🏆 TOP 10\n\n"
+
+    for i, user in enumerate(users, start=1):
+
+        text += (
+            f"{i}. "
+            f"{user.full_name} - "
+            f"{user.balls} ball\n"
+        )
+
+    await message.answer(text)
 
 
 
