@@ -36,7 +36,10 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-ADMIN_ID = 515902673
+ADMIN_IDS = [
+    515902673,
+    7988918836
+]
 
 MAIN_CHANNEL = "@andijonpfc"
 
