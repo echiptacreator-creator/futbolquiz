@@ -551,16 +551,16 @@ async def prediction_input(message: Message):
 @dp.message(F.text == "⚽ Match Yaratish")
 async def create_match(message: Message):
 
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
     CURRENT_MATCH["active"] = True
     CURRENT_MATCH["home"] = "Andijon"
     CURRENT_MATCH["away"] = "Nasaf"
 
+    print(CURRENT_MATCH)
+
     await message.answer(
         "✅ Andijon vs Nasaf prognozi ochildi"
     )
+    
 
 @dp.message(F.text == "🏁 Natija Kiritish")
 async def result_enter(message: Message):
