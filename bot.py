@@ -213,11 +213,13 @@ dp = Dispatcher()
 
 
 
-@dp.message(CommandStart())
+
 @dp.message(CommandStart())
 async def start_cmd(message: Message):
 
-    print("START TEXT =", message.text)
+    print("START =", message.text)
+    print("USER =", message.from_user.id)
+    print("REF =", ref_id)
     
     ref_id = None
 
