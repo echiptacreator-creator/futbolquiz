@@ -69,7 +69,7 @@ class Base(DeclarativeBase):
 
 match_create_admins = {}
 prediction_states = {}
-
+result_states = {}
 
 
 class Match(Base):
@@ -591,6 +591,126 @@ async def create_match_steps(message: Message):
             f"📅 {match_date.strftime('%d.%m.%Y %H:%M')}"
         )
 
+
+@dp.message(F.text == "🏁 Natija Kiritish")
+async def result_menu(message: Message):
+
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    async with SessionLocal() as session:
+
+        result = await session.execute(
+            select(Match)
+            .where(Match.active == True)
+            .order_by(Match.match_date)
+        )
+
+        matches = result.scalars().all()
+
+    if not matches:
+
+        await message.answer(
+            "❌ Aktiv o'yinlar yo'q"
+        )
+        return
+
+    text = "🏁 Natija kiritiladigan o'yinlar\n\n"
+
+    for match in matches:
+
+        text += (
+            f"{match.id}. "
+            f"{match.home_team} vs "
+            f"{match.away_team}\n"
+        )
+
+    result_states[
+        message.from_user.id
+    ] = {
+        "step": 1
+    }
+
+    await message.answer(
+        text +
+        "\nMatch ID sini yuboring"
+    )
+
+@dp.message(
+    lambda m:
+    m.from_user.id in result_states
+)
+async def result_steps(message: Message):
+
+    state = result_states[
+        message.from_user.id
+    ]
+
+    async with SessionLocal() as session:
+
+        if state["step"] == 1:
+
+            if not message.text.isdigit():
+
+                await message.answer(
+                    "Match ID yuboring"
+                )
+                return
+
+            match_id = int(message.text)
+
+            match = await session.get(
+                Match,
+                match_id
+            )
+
+            if not match:
+
+                await message.answer(
+                    "❌ Match topilmadi"
+                )
+                return
+
+            state["match_id"] = match_id
+            state["step"] = 2
+
+            await message.answer(
+                "Natijani kiriting\n\n"
+                "Misol: 2:1"
+            )
+
+            return
+
+        if state["step"] == 2:
+
+            score = message.text.strip()
+
+            if ":" not in score:
+
+                await message.answer(
+                    "Misol: 2:1"
+                )
+                return
+
+            match = await session.get(
+                Match,
+                state["match_id"]
+            )
+
+            match.result = score
+            match.active = False
+
+            await session.commit()
+
+            del result_states[
+                message.from_user.id
+            ]
+
+            await message.answer(
+                f"✅ Natija saqlandi\n\n"
+                f"⚽ {match.home_team} vs {match.away_team}\n"
+                f"🏁 {score}"
+            )
 
 
 
