@@ -487,67 +487,6 @@ async def prediction_menu(message: Message):
 
 #HISOBNI QABUL QILISH
 
-@dp.message(
-    lambda message:
-    message.from_user.id in prediction_users
-)
-async def prediction_input(message: Message):
-
-    if message.from_user.id not in prediction_users:
-        return
-
-    if message.from_user.id in result_admins:
-        return
-    text = message.text.strip()
-
-    if ":" not in text:
-
-        await message.answer(
-            "❌ Format noto'g'ri\n\n"
-            "Misol: 2:1"
-        )
-
-        return
-
-    try:
-
-        home, away = text.split(":")
-
-        int(home)
-        int(away)
-
-    except:
-
-        await message.answer(
-            "❌ Misol: 2:1"
-        )
-
-        return
-
-    async with SessionLocal() as session:
-
-        user = await session.get(
-            User,
-            message.from_user.id
-        )
-
-        user.prediction = text
-
-        user.balls += 2
-
-        await session.commit()
-
-    prediction_users.discard(
-        message.from_user.id
-    )
-
-    await message.answer(
-        f"✅ Prognoz saqlandi\n\n"
-        f"Siz: {text}\n\n"
-        f"🏅 +2 ball",
-        reply_markup=user_menu
-    )
-
 
 #################################################
 #            ADMIN BOLIMI
@@ -603,59 +542,6 @@ def winner(score):
     return "draw"
 
 
-@dp.message(
-    lambda message:
-    message.from_user.id in result_admins
-)
-async def result_input(message: Message):
-
-    if message.from_user.id not in result_admins:
-        return
-
-
-    result_score = message.text.strip()
-
-    async with SessionLocal() as session:
-
-        result = await session.execute(
-            select(User)
-        )
-
-        users = result.scalars().all()
-
-        exact = 0
-        winners = 0
-
-        for user in users:
-
-            if not user.prediction:
-                continue
-
-            if user.prediction == result_score:
-
-                user.balls += 100
-                exact += 1
-
-            elif winner(user.prediction) == winner(result_score):
-
-                user.balls += 40
-                winners += 1
-
-            user.prediction = None
-
-        await session.commit()
-
-    result_admins.discard(
-        message.from_user.id
-    )
-
-    CURRENT_MATCH["active"] = False
-
-    await message.answer(
-        f"🏆 Natija hisoblandi\n\n"
-        f"🎯 To'g'ri hisob: {exact}\n"
-        f"⚽ G'olibni topgan: {winners}"
-    )
 
 
 async def main():
