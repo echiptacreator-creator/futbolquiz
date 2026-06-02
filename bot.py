@@ -19,8 +19,6 @@ from aiogram.types import (
 )
 from datetime import date
 from sqlalchemy import DateTime
-InlineKeyboardMarkup,
-InlineKeyboardButton
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker
@@ -286,34 +284,6 @@ async def check_subscription(user_id):
 
         return False
 
-if not await check_subscription(
-    message.from_user.id
-):
-
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="📢 Kanalga o'tish",
-                    url=f"https://t.me/{MAIN_CHANNEL.replace('@','')}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="✅ Tekshirish",
-                    callback_data="check_sub"
-                )
-            ]
-        ]
-    )
-
-    await message.answer(
-        "⚠️ Botdan foydalanish uchun "
-        "kanalga obuna bo'ling.",
-        reply_markup=kb
-    )
-
-    return
 
 @dp.callback_query(
     F.data == "check_sub"
@@ -458,22 +428,37 @@ dp = Dispatcher()
 
 
 
-
 @dp.message(CommandStart())
 async def start_cmd(message: Message):
-
 
     if not await check_subscription(
         message.from_user.id
     ):
-    
-        await message.answer(
-            f"⚠️ Botdan foydalanish uchun\n"
-            f"avval {MAIN_CHANNEL} kanaliga "
-            f"obuna bo'ling."
+
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📢 Kanalga o'tish",
+                        url=f"https://t.me/{MAIN_CHANNEL.replace('@','')}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="✅ Tekshirish",
+                        callback_data="check_sub"
+                    )
+                ]
+            ]
         )
-    
+
+        await message.answer(
+            "⚠️ Botdan foydalanish uchun kanalga obuna bo'ling.",
+            reply_markup=kb
+        )
+
         return
+
     ref_id = None
 
     args = message.text.split()
@@ -484,30 +469,25 @@ async def start_cmd(message: Message):
 
             ref_id = int(args[1])
 
-    print("START =", message.text)
-    print("USER =", message.from_user.id)
-    print("REF =", ref_id)
-
     await get_or_create_user(
         message,
         ref_id
     )
 
     if message.from_user.id in ADMIN_IDS:
-    
+
         await message.answer(
             "⚽ Admin panel",
             reply_markup=admin_menu
         )
-    
+
     else:
-    
+
         await message.answer(
             "⚽ Andijon FC Fan Challenge\n\n"
             "Ball yig'ing va sovg'alarni qo'lga kiriting!",
             reply_markup=user_menu
         )
-
 
 
 # PROFIL TUGMASI MENYUSI
