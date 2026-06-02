@@ -49,7 +49,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 ADMIN_IDS = [
     515902673,
-    7988918836
+    103037146
 ]
 
 MAIN_CHANNEL = "@andijonpfc"
