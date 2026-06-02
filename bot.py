@@ -84,6 +84,27 @@ quiz_create_states = {}
 
 
 
+class QuizAnswer(Base):
+
+    __tablename__ = "quiz_answers"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger
+    )
+
+    quiz_id: Mapped[int] = mapped_column(
+        Integer
+    )
+
+
+
+
 
 class Quiz(Base):
 
@@ -1272,6 +1293,161 @@ async def quiz_create_steps(
         await message.answer(
             "✅ Savol saqlandi"
         )
+
+
+@dp.message(F.text == "🎯 Viktorina")
+async def quiz_menu(message: Message):
+
+    async with SessionLocal() as session:
+
+        result = await session.execute(
+            select(Quiz)
+            .where(Quiz.active == True)
+            .order_by(Quiz.id.desc())
+        )
+
+        quiz = result.scalar_one_or_none()
+
+        if not quiz:
+
+            await message.answer(
+                "❌ Hozir aktiv viktorina yo'q"
+            )
+            return
+
+        check = await session.execute(
+            select(QuizAnswer)
+            .where(
+                QuizAnswer.user_id
+                == message.from_user.id,
+                QuizAnswer.quiz_id
+                == quiz.id
+            )
+        )
+
+        answered = check.scalar_one_or_none()
+
+        if answered:
+
+            await message.answer(
+                "✅ Siz bu savolga javob bergansiz."
+            )
+            return
+
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=quiz.option_a,
+                        callback_data=f"quiz_{quiz.id}_A"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=quiz.option_b,
+                        callback_data=f"quiz_{quiz.id}_B"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=quiz.option_c,
+                        callback_data=f"quiz_{quiz.id}_C"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=quiz.option_d,
+                        callback_data=f"quiz_{quiz.id}_D"
+                    )
+                ]
+            ]
+        )
+
+        await message.answer(
+            f"🏆 Andijon FC Viktorinasi\n\n"
+            f"❓ {quiz.question}\n\n"
+            f"🏅 Mukofot: {quiz.reward} ball",
+            reply_markup=kb
+        )
+
+
+
+@dp.callback_query(
+    F.data.startswith("quiz_")
+)
+async def quiz_answer(
+    callback: CallbackQuery
+):
+
+    _, quiz_id, answer = (
+        callback.data.split("_")
+    )
+
+    quiz_id = int(quiz_id)
+
+    async with SessionLocal() as session:
+
+        quiz = await session.get(
+            Quiz,
+            quiz_id
+        )
+
+        check = await session.execute(
+            select(QuizAnswer)
+            .where(
+                QuizAnswer.user_id
+                == callback.from_user.id,
+                QuizAnswer.quiz_id
+                == quiz_id
+            )
+        )
+
+        if check.scalar_one_or_none():
+
+            await callback.answer(
+                "Siz javob bergansiz",
+                show_alert=True
+            )
+            return
+
+        session.add(
+            QuizAnswer(
+                user_id=callback.from_user.id,
+                quiz_id=quiz_id
+            )
+        )
+
+        user = await session.get(
+            User,
+            callback.from_user.id
+        )
+
+        if answer == quiz.correct_answer:
+
+            user.balls += quiz.reward
+
+            text = (
+                f"✅ To'g'ri javob!\n\n"
+                f"🏅 +{quiz.reward} ball oldingiz."
+            )
+
+        else:
+
+            text = (
+                f"❌ Noto'g'ri javob.\n\n"
+                f"To'g'ri javob: "
+                f"{quiz.correct_answer}"
+            )
+
+        await session.commit()
+
+    await callback.message.edit_reply_markup(
+        reply_markup=None
+    )
+
+    await callback.message.answer(text)
+
+    await callback.answer()
 
 
 
