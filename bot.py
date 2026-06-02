@@ -284,35 +284,6 @@ async def check_subscription(user_id):
 
         return False
 
-
-@dp.callback_query(
-    F.data == "check_sub"
-)
-async def check_sub_callback(
-    callback: CallbackQuery
-):
-
-    if await check_subscription(
-        callback.from_user.id
-    ):
-
-        await callback.message.delete()
-
-        await callback.message.answer(
-            "✅ Obuna tasdiqlandi.\n"
-            "Botdan foydalanishingiz mumkin.",
-            reply_markup=user_menu
-        )
-
-    else:
-
-        await callback.answer(
-            "❌ Hali kanalga obuna bo'lmagansiz.",
-            show_alert=True
-        )
-
-
-
 async def get_or_create_user(
     message: Message,
     ref_id=None
@@ -421,6 +392,32 @@ bot = Bot(
 )
 
 dp = Dispatcher()
+
+@dp.callback_query(
+    F.data == "check_sub"
+)
+async def check_sub_callback(
+    callback: CallbackQuery
+):
+
+    if await check_subscription(
+        callback.from_user.id
+    ):
+
+        await callback.message.delete()
+
+        await callback.message.answer(
+            "✅ Obuna tasdiqlandi.\n"
+            "Botdan foydalanishingiz mumkin.",
+            reply_markup=user_menu
+        )
+
+    else:
+
+        await callback.answer(
+            "❌ Hali kanalga obuna bo'lmagansiz.",
+            show_alert=True
+        )
 
 
 
