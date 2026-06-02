@@ -79,6 +79,54 @@ match_create_admins = {}
 prediction_states = {}
 result_states = {}
 edit_prediction_states = {}
+quiz_create_states = {}
+
+
+
+
+
+class Quiz(Base):
+
+    __tablename__ = "quizzes"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    question: Mapped[str] = mapped_column(
+        String(500)
+    )
+
+    option_a: Mapped[str] = mapped_column(
+        String(255)
+    )
+
+    option_b: Mapped[str] = mapped_column(
+        String(255)
+    )
+
+    option_c: Mapped[str] = mapped_column(
+        String(255)
+    )
+
+    option_d: Mapped[str] = mapped_column(
+        String(255)
+    )
+
+    correct_answer: Mapped[str] = mapped_column(
+        String(1)
+    )
+
+    reward: Mapped[int] = mapped_column(
+        Integer,
+        default=10
+    )
+
+    active: Mapped[bool] = mapped_column(
+        default=True
+    )
 
 
 
@@ -1084,6 +1132,148 @@ async def save_edited_prediction(
         f"✅ Prognoz yangilandi\n\n"
         f"📊 Yangi prognoz: {score}"
     )
+
+
+
+@dp.message(F.text == "➕ Savol qo'shish")
+async def add_quiz(message: Message):
+
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    quiz_create_states[
+        message.from_user.id
+    ] = {
+        "step": 1
+    }
+
+    await message.answer(
+        "Savolni kiriting:"
+    )
+
+@dp.message(
+    lambda m:
+    m.from_user.id in quiz_create_states
+)
+async def quiz_create_steps(
+    message: Message
+):
+
+    state = quiz_create_states[
+        message.from_user.id
+    ]
+
+    if state["step"] == 1:
+
+        state["question"] = message.text
+        state["step"] = 2
+
+        await message.answer(
+            "A variant:"
+        )
+        return
+
+    if state["step"] == 2:
+
+        state["a"] = message.text
+        state["step"] = 3
+
+        await message.answer(
+            "B variant:"
+        )
+        return
+
+    if state["step"] == 3:
+
+        state["b"] = message.text
+        state["step"] = 4
+
+        await message.answer(
+            "C variant:"
+        )
+        return
+
+    if state["step"] == 4:
+
+        state["c"] = message.text
+        state["step"] = 5
+
+        await message.answer(
+            "D variant:"
+        )
+        return
+
+    if state["step"] == 5:
+
+        state["d"] = message.text
+        state["step"] = 6
+
+        await message.answer(
+            "To'g'ri javob:\n\nA/B/C/D"
+        )
+        return
+
+    if state["step"] == 6:
+
+        answer = message.text.upper()
+
+        if answer not in [
+            "A",
+            "B",
+            "C",
+            "D"
+        ]:
+
+            await message.answer(
+                "Faqat A/B/C/D"
+            )
+            return
+
+        state["correct"] = answer
+        state["step"] = 7
+
+        await message.answer(
+            "Ball miqdori:"
+        )
+        return
+
+    if state["step"] == 7:
+
+        if not message.text.isdigit():
+
+            await message.answer(
+                "Raqam kiriting"
+            )
+            return
+
+        reward = int(message.text)
+
+        async with SessionLocal() as session:
+
+            quiz = Quiz(
+                question=state["question"],
+                option_a=state["a"],
+                option_b=state["b"],
+                option_c=state["c"],
+                option_d=state["d"],
+                correct_answer=state["correct"],
+                reward=reward,
+                active=True
+            )
+
+            session.add(quiz)
+
+            await session.commit()
+
+        del quiz_create_states[
+            message.from_user.id
+        ]
+
+        await message.answer(
+            "✅ Savol saqlandi"
+        )
+
+
 
 
 
