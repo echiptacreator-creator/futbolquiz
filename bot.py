@@ -8,6 +8,9 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from sqlalchemy import DateTime
 from datetime import datetime
+from sqlalchemy import Date
+from datetime import date
+from datetime import date, timedelta
 from aiogram.filters import CommandStart
 from aiogram.types import (
     Message,
@@ -249,7 +252,15 @@ class User(Base):
     DateTime,
     nullable=True
     )
-
+    last_bonus: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True
+    )
+    
+    bonus_streak: Mapped[int] = mapped_column(
+        Integer,
+        default=0
+    )
 
 
 
@@ -526,25 +537,49 @@ async def daily_bonus(message: Message):
         )
 
         today = date.today()
-        
+
         if user.last_bonus == today:
-        
+
             await message.answer(
-                "⏳ Siz bugungi bonusni olib bo'lgansiz.\n\n"
-                "Ertaga qayting."
+                "❌ Siz bugungi bonusni olib bo'lgansiz."
             )
             return
-        
-        user.balls += 5
-        user.last_bonus = today
-        
-        await session.commit()
-        
-        await message.answer(
-            "🔥 Bonus olindi!\n\n"
-            "🏅 +5 ball"
+
+        if user.last_bonus:
+
+            diff = (
+                today - user.last_bonus
+            ).days
+
+            if diff == 1:
+
+                user.bonus_streak += 1
+
+            else:
+
+                user.bonus_streak = 1
+
+        else:
+
+            user.bonus_streak = 1
+
+        reward = min(
+            user.bonus_streak * 5,
+            50
         )
 
+        user.balls += reward
+        user.last_bonus = today
+
+        await session.commit()
+
+        await message.answer(
+            f"🔥 Kunlik bonus olindi!\n\n"
+            f"📅 Ketma-ket kunlar: "
+            f"{user.bonus_streak}\n"
+            f"🏅 Bonus: +{reward} ball\n"
+            f"🎯 Jami ball: {user.balls}"
+        )
 
 #sovrinlar tugmmasi va oshani menyusi
 
