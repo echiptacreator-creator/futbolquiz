@@ -533,12 +533,13 @@ async def leaderboard_handler(message: Message):
     async with SessionLocal() as session:
 
         result = await session.execute(
-            select(User)
-            .order_by(User.balls.desc())
-            .limit(10)
+            select(Quiz)
+            .where(Quiz.active == True)
+            .order_by(Quiz.id.desc())
+            .limit(1)
         )
-
-        users = result.scalars().all()
+        
+        quiz = result.scalar()
 
     text = "🏆 TOP 10\n\n"
 
