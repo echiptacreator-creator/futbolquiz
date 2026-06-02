@@ -1364,9 +1364,9 @@ async def quiz_menu(message: Message):
         )
 
         await message.answer(
-            f"🏆 Andijon FC Viktorinasi\n\n"
-            f"❓ {quiz.question}\n\n"
-            f"🏅 Mukofot: {quiz.reward} ball",
+            f"🏆 <b>ANDIJON FC VIKTORINASI</b>\n\n"
+            f"❓ <b>{quiz.question}</b>\n\n"
+            f"🏅 Mukofot: <b>{quiz.reward} ball</b>",
             reply_markup=kb
         )
 
