@@ -253,11 +253,6 @@ class User(Base):
     DateTime,
     nullable=True
     )
-    last_bonus: Mapped[date | None] = mapped_column(
-        Date,
-        nullable=True
-    )
-    
     bonus_streak: Mapped[int] = mapped_column(
         Integer,
         default=0
