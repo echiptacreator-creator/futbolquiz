@@ -19,6 +19,8 @@ from aiogram.types import (
 )
 from datetime import date
 from sqlalchemy import DateTime
+InlineKeyboardMarkup,
+InlineKeyboardButton
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker
@@ -70,6 +72,7 @@ SessionLocal = async_sessionmaker(
     engine,
     expire_on_commit=False
 )
+
 
 class Base(DeclarativeBase):
     pass
@@ -264,6 +267,82 @@ class User(Base):
 
 
 
+async def check_subscription(user_id):
+
+    try:
+
+        member = await bot.get_chat_member(
+            MAIN_CHANNEL,
+            user_id
+        )
+
+        return member.status in [
+            "member",
+            "administrator",
+            "creator"
+        ]
+
+    except:
+
+        return False
+
+if not await check_subscription(
+    message.from_user.id
+):
+
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📢 Kanalga o'tish",
+                    url=f"https://t.me/{MAIN_CHANNEL.replace('@','')}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="✅ Tekshirish",
+                    callback_data="check_sub"
+                )
+            ]
+        ]
+    )
+
+    await message.answer(
+        "⚠️ Botdan foydalanish uchun "
+        "kanalga obuna bo'ling.",
+        reply_markup=kb
+    )
+
+    return
+
+@dp.callback_query(
+    F.data == "check_sub"
+)
+async def check_sub_callback(
+    callback: CallbackQuery
+):
+
+    if await check_subscription(
+        callback.from_user.id
+    ):
+
+        await callback.message.delete()
+
+        await callback.message.answer(
+            "✅ Obuna tasdiqlandi.\n"
+            "Botdan foydalanishingiz mumkin.",
+            reply_markup=user_menu
+        )
+
+    else:
+
+        await callback.answer(
+            "❌ Hali kanalga obuna bo'lmagansiz.",
+            show_alert=True
+        )
+
+
+
 async def get_or_create_user(
     message: Message,
     ref_id=None
@@ -383,6 +462,18 @@ dp = Dispatcher()
 @dp.message(CommandStart())
 async def start_cmd(message: Message):
 
+
+    if not await check_subscription(
+        message.from_user.id
+    ):
+    
+        await message.answer(
+            f"⚠️ Botdan foydalanish uchun\n"
+            f"avval {MAIN_CHANNEL} kanaliga "
+            f"obuna bo'ling."
+        )
+    
+        return
     ref_id = None
 
     args = message.text.split()
